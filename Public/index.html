@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Jiffy Junk Volume Assistant</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width:600px; margin:20px auto; }
+    #messages { border:1px solid #ccc; padding:10px; height:300px; overflow-y:scroll; }
+    .message { margin-bottom:8px; }
+    .user { color: blue; }
+    .assistant { color: green; }
+    #controls { margin-top:10px; }
+  </style>
+</head>
+<body>
+  <h1>Jiffy Junk Volume Assistant</h1>
+  <div id="messages"></div>
+  <div id="controls">
+    <input type="file" id="imgUpload" multiple accept="image/*" />
+    <input type="text" id="userInput" placeholder="Describe items..." style="width:100%; padding:8px; margin-top:5px;" />
+    <button id="sendBtn" style="padding:10px 20px; margin-top:5px;">Send</button>
+  </div>
+
+  <script>
+    const messagesDiv = document.getElementById('messages');
+    const input = document.getElementById('userInput');
+    const imgUpload = document.getElementById('imgUpload');
+    const sendBtn = document.getElementById('sendBtn');
+
+    function addMessage(text, sender) {
+      const div = document.createElement('div');
+      div.classList.add('message', sender);
+      div.textContent = `${sender === 'user' ? 'You' : 'Assistant'}: ${text}`;
+      messagesDiv.appendChild(div);
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    }
+
+    function toBase64(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = error => reject(error);
+        reader.readAsDataURL(file);
+      });
+    }
+
+    sendBtn.onclick = async () => {
+      const text = input.value;
+      if (!text && imgUpload.files.length === 0) return;
+      addMessage(text, 'user');
+      const images = [];
+      for (const file of imgUpload.files) images.push(await toBase64(file));
+      input.value = '';
+      imgUpload.value = '';
+
+      const res = await fetch('http://localhost:3000/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: text, images }),
+      });
+      const data = await res.json();
+      addMessage(data.reply || 'Error: no response', 'assistant');
+    };
+  </script>
+</body>
+</html>
