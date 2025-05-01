@@ -3,12 +3,12 @@ const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const OpenAI = require('openai');
+const path = require('path');
 
 const app = express();
 app.use(cors());
-app.use(bodyParser.json({ limit: '10mb' }));
+app.use(bodyParser.json({ limit: '25mb' }));
 app.use(express.static('public'));
-
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -24,24 +24,48 @@ app.post('/api/chat', async (req, res) => {
     const { message, images } = req.body;
 
     const messages = [
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: message || 'Estimate volume based on images only.' }
+      {
+        role: 'system',
+        content: systemPrompt
+      },
+      {
+        role: 'user',
+        content: []
+      }
     ];
 
-    // Optional: add base64 image refs (if vision model supported — placeholder for future use)
+    if (message && message.trim() !== '') {
+      messages[1].content.push({ type: 'text', text: message });
+    }
 
-   const completion = await openai.chat.completions.create({
-  model: 'gpt-3.5-turbo',
-  messages: messages
-});
+    if (images && images.length > 0) {
+      for (const img of images) {
+        messages[1].content.push({
+          type: 'image_url',
+          image_url: {
+            url: img
+          }
+        });
+      }
+    }
 
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o',
+      messages
+    });
 
     const reply = completion.choices[0].message.content.trim();
     res.json({ reply });
- } catch (err) {
-  console.error('[GPT ERROR]', err);
+
+  } catch (err) {
+    console.error('[GPT ERROR]', err);
     res.status(500).json({ reply: `Error: ${err.message || 'Unknown error'}` });
   }
+});
+
+// Serve index.html at the root
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 const PORT = process.env.PORT || 3000;
