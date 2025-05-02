@@ -1,66 +1,98 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <meta charset="utf-8" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Jiffy Junk Volume Assistant</title>
   <style>
-    body { font-family: Arial, sans-serif; max-width:600px; margin:20px auto; }
-    #messages { border:1px solid #ccc; padding:10px; height:300px; overflow-y:scroll; }
-    .message { margin-bottom:8px; }
-    .user { color: blue; }
-    .assistant { color: green; }
-    #controls { margin-top:10px; }
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+    }
+    h1 {
+      font-size: 24px;
+    }
+    #chat {
+      width: 100%;
+      height: 300px;
+      border: 1px solid #ccc;
+      padding: 10px;
+      overflow-y: scroll;
+      margin-bottom: 10px;
+    }
+    #chat p {
+      margin: 5px 0;
+    }
+    #chat .user {
+      color: blue;
+    }
+    #chat .assistant {
+      color: green;
+    }
   </style>
 </head>
 <body>
   <h1>Jiffy Junk Volume Assistant</h1>
-  <div id="messages"></div>
-  <div id="controls">
-    <input type="file" id="imgUpload" multiple accept="image/*" />
-    <input type="text" id="userInput" placeholder="Describe items..." style="width:100%; padding:8px; margin-top:5px;" />
-    <button id="sendBtn" style="padding:10px 20px; margin-top:5px;">Send</button>
-  </div>
+  <div id="chat"></div>
+  <input type="file" id="fileInput" multiple accept="image/*" /><br /><br />
+  <textarea id="userInput" rows="2" style="width:100%;" placeholder="Describe items..."></textarea><br />
+  <button onclick="sendMessage()">Send</button>
 
   <script>
-    const messagesDiv = document.getElementById('messages');
-    const input = document.getElementById('userInput');
-    const imgUpload = document.getElementById('imgUpload');
-    const sendBtn = document.getElementById('sendBtn');
+    async function sendMessage() {
+      const chat = document.getElementById('chat');
+      const userInput = document.getElementById('userInput').value.trim();
+      const files = document.getElementById('fileInput').files;
 
-    function addMessage(text, sender) {
-      const div = document.createElement('div');
-      div.classList.add('message', sender);
-      div.textContent = `${sender === 'user' ? 'You' : 'Assistant'}: ${text}`;
-      messagesDiv.appendChild(div);
-      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+      if (!userInput && files.length === 0) return;
+
+      const userMessage = document.createElement('p');
+      userMessage.className = 'user';
+      userMessage.textContent = 'You: ' + userInput;
+      chat.appendChild(userMessage);
+      chat.scrollTop = chat.scrollHeight;
+
+      const base64Images = await Promise.all(
+        Array.from(files).map(file => toBase64(file))
+      );
+
+      try {
+        const response = await fetch('/api/chat', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ message: userInput, images: base64Images })
+        });
+
+        const data = await response.json();
+
+        const botMessage = document.createElement('p');
+        botMessage.className = 'assistant';
+        botMessage.textContent = 'Assistant: ' + data.reply;
+        chat.appendChild(botMessage);
+        chat.scrollTop = chat.scrollHeight;
+      } catch (err) {
+        const botMessage = document.createElement('p');
+        botMessage.className = 'assistant';
+        botMessage.textContent = 'Assistant: Error getting response';
+        chat.appendChild(botMessage);
+      }
+
+      document.getElementById('userInput').value = '';
+      document.getElementById('fileInput').value = '';
     }
 
     function toBase64(file) {
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
+        reader.readAsDataURL(file);
         reader.onload = () => resolve(reader.result);
         reader.onerror = error => reject(error);
-        reader.readAsDataURL(file);
       });
     }
-
-    sendBtn.onclick = async () => {
-      const text = input.value;
-      if (!text && imgUpload.files.length === 0) return;
-      addMessage(text, 'user');
-      const images = [];
-      for (const file of imgUpload.files) images.push(await toBase64(file));
-      input.value = '';
-      imgUpload.value = '';
-
-      const res = await fetch('http://localhost:3000/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: text, images }),
-      });
-      const data = await res.json();
-      addMessage(data.reply || 'Error: no response', 'assistant');
-    };
   </script>
 </body>
 </html>
+
+
