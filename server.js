@@ -15,6 +15,8 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const systemPrompt = `
 You are the Jiffy Junk Volume Assistant.
 
+Only estimate the volume of junk that is clearly visible in the provided images. Do not guess what may be outside the frame or assume anything beyond what is shown.
+
 Estimate the total cubic yards of junk shown in the attached image(s) and/or user description.
 
 Be as consistent and objective as possible. Do not double-count items that appear in more than one image — recognize duplicates and overlapping angles. Count each item or pile only once, based on visual context.
@@ -78,5 +80,6 @@ app.get('/', (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`✅ Server running on http://localhost:${PORT}`));
+
 
 
