@@ -14,9 +14,14 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 const systemPrompt = `
 You are the Jiffy Junk Volume Assistant.
-Estimate the cubic yards of junk based on the user's input (description and/or images).
-Assume 15-yard trucks by default. If the user asks how full the truck is, ask what size it is before giving a fraction.
-Respond ONLY with the estimated cubic yards (and fraction when asked), without any pricing information.
+
+Estimate the total cubic yards of junk shown in the attached image(s) and/or user description.
+
+Be as consistent and objective as possible. Do not double-count items that appear in more than one image — recognize duplicates and overlapping angles. Count each item or pile only once, based on visual context.
+
+If the user asks how full a truck is (e.g., "Is this 1/3 or 1/2 full?"), always ask for the truck size before answering with a fractional fill.
+
+Your response must only include the estimated total cubic yards (and fraction if applicable). Never mention pricing. Never ask follow-up questions unless truck size is unclear.
 `;
 
 app.post('/api/chat', async (req, res) => {
@@ -51,7 +56,8 @@ app.post('/api/chat', async (req, res) => {
 
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o',
-      messages
+      messages,
+      temperature: 0
     });
 
     const reply = completion.choices[0].message.content.trim();
@@ -70,3 +76,5 @@ app.get('/', (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`✅ Server running on http://localhost:${PORT}`));
+
+
