@@ -8,34 +8,44 @@
     body {
       font-family: 'Segoe UI', sans-serif;
       background: #f5f5f5;
+      margin: 0;
+      padding: 0;
       display: flex;
       justify-content: center;
       align-items: flex-start;
-      padding: 40px;
+      padding: 40px 20px;
     }
     .container {
       background: white;
       padding: 20px;
-      max-width: 600px;
+      max-width: 700px;
       width: 100%;
       border-radius: 12px;
-      box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+      box-shadow: 0 0 20px rgba(0, 0, 0, 0.05);
+    }
+    header {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    header img {
+      width: 200px;
     }
     h1 {
-      text-align: center;
-      color: #2e2e2e;
+      font-size: 1.6rem;
+      color: #003a5d;
+      margin-top: 10px;
     }
     #chat {
       border: 1px solid #ddd;
       padding: 10px;
       height: 300px;
-      overflow-y: scroll;
+      overflow-y: auto;
       margin-bottom: 15px;
       background: #fafafa;
       border-radius: 6px;
     }
     .drag-drop {
-      border: 2px dashed #aaa;
+      border: 2px dashed #007acc;
       padding: 20px;
       text-align: center;
       margin-bottom: 10px;
@@ -56,16 +66,17 @@
     }
     textarea, button {
       width: 100%;
-      padding: 10px;
+      padding: 12px;
       font-size: 1rem;
       margin-bottom: 10px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
     }
     button {
       background: #007acc;
       color: white;
       border: none;
       cursor: pointer;
-      border-radius: 6px;
     }
     button:hover {
       background: #005fa3;
@@ -74,7 +85,11 @@
 </head>
 <body>
   <div class="container">
-    <h1>Jiffy Junk Volume Assistant</h1>
+    <header>
+      <img src="https://jiffyjunk.com/wp-content/uploads/2021/11/Jiffy-Junk-Logo-Slogan.png" alt="Jiffy Junk logo" />
+      <h1>Volume Estimator Assistant</h1>
+    </header>
+
     <div id="chat"></div>
 
     <div class="drag-drop" id="dropzone">
@@ -83,7 +98,7 @@
     </div>
     <div id="preview"></div>
 
-    <textarea id="message" rows="2" placeholder="Describe items..."></textarea>
+    <textarea id="message" rows="2" placeholder="Describe items or ask: 'How full is this truck?'..."></textarea>
     <button onclick="sendMessage()">Send</button>
   </div>
 
