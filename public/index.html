@@ -6,93 +6,156 @@
   <title>Jiffy Junk Volume Assistant</title>
   <style>
     body {
-      font-family: Arial, sans-serif;
+      font-family: 'Segoe UI', sans-serif;
+      background: #f5f5f5;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 40px;
+    }
+    .container {
+      background: white;
       padding: 20px;
+      max-width: 600px;
+      width: 100%;
+      border-radius: 12px;
+      box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
     }
     h1 {
-      font-size: 24px;
+      text-align: center;
+      color: #2e2e2e;
     }
     #chat {
-      width: 100%;
-      height: 300px;
-      border: 1px solid #ccc;
+      border: 1px solid #ddd;
       padding: 10px;
+      height: 300px;
       overflow-y: scroll;
+      margin-bottom: 15px;
+      background: #fafafa;
+      border-radius: 6px;
+    }
+    .drag-drop {
+      border: 2px dashed #aaa;
+      padding: 20px;
+      text-align: center;
+      margin-bottom: 10px;
+      background-color: #f9f9f9;
+      border-radius: 8px;
+      transition: background-color 0.3s;
+    }
+    .drag-drop.dragover {
+      background-color: #e0f7fa;
+    }
+    #fileInput {
+      display: none;
+    }
+    #preview img {
+      max-width: 100px;
+      margin: 5px;
+      border-radius: 4px;
+    }
+    textarea, button {
+      width: 100%;
+      padding: 10px;
+      font-size: 1rem;
       margin-bottom: 10px;
     }
-    #chat p {
-      margin: 5px 0;
+    button {
+      background: #007acc;
+      color: white;
+      border: none;
+      cursor: pointer;
+      border-radius: 6px;
     }
-    #chat .user {
-      color: blue;
-    }
-    #chat .assistant {
-      color: green;
+    button:hover {
+      background: #005fa3;
     }
   </style>
 </head>
 <body>
-  <h1>Jiffy Junk Volume Assistant</h1>
-  <div id="chat"></div>
-  <input type="file" id="fileInput" multiple accept="image/*" /><br /><br />
-  <textarea id="userInput" rows="2" style="width:100%;" placeholder="Describe items..."></textarea><br />
-  <button onclick="sendMessage()">Send</button>
+  <div class="container">
+    <h1>Jiffy Junk Volume Assistant</h1>
+    <div id="chat"></div>
+
+    <div class="drag-drop" id="dropzone">
+      Drag & drop images here or <label for="fileInput" style="color:#007acc;cursor:pointer;">browse</label>
+      <input type="file" id="fileInput" multiple />
+    </div>
+    <div id="preview"></div>
+
+    <textarea id="message" rows="2" placeholder="Describe items..."></textarea>
+    <button onclick="sendMessage()">Send</button>
+  </div>
 
   <script>
-    async function sendMessage() {
-      const chat = document.getElementById('chat');
-      const userInput = document.getElementById('userInput').value.trim();
-      const files = document.getElementById('fileInput').files;
+    const chat = document.getElementById('chat');
+    const fileInput = document.getElementById('fileInput');
+    const dropzone = document.getElementById('dropzone');
+    const preview = document.getElementById('preview');
+    let imageFiles = [];
 
-      if (!userInput && files.length === 0) return;
+    dropzone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropzone.classList.add('dragover');
+    });
 
-      const userMessage = document.createElement('p');
-      userMessage.className = 'user';
-      userMessage.textContent = 'You: ' + userInput;
-      chat.appendChild(userMessage);
+    dropzone.addEventListener('dragleave', () => {
+      dropzone.classList.remove('dragover');
+    });
+
+    dropzone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropzone.classList.remove('dragover');
+      const files = Array.from(e.dataTransfer.files);
+      handleFiles(files);
+    });
+
+    fileInput.addEventListener('change', () => {
+      handleFiles(Array.from(fileInput.files));
+    });
+
+    function handleFiles(files) {
+      files.forEach(file => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          imageFiles.push(reader.result);
+          const img = document.createElement('img');
+          img.src = reader.result;
+          preview.appendChild(img);
+        }
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function appendMessage(role, text) {
+      const msg = document.createElement('div');
+      msg.innerHTML = `<strong>${role}:</strong> ${text}`;
+      chat.appendChild(msg);
       chat.scrollTop = chat.scrollHeight;
+    }
 
-      const base64Images = await Promise.all(
-        Array.from(files).map(file => toBase64(file))
-      );
+    async function sendMessage() {
+      const message = document.getElementById('message').value;
+      if (!message && imageFiles.length === 0) return;
+
+      appendMessage('You', message);
+      document.getElementById('message').value = '';
 
       try {
         const response = await fetch('/api/chat', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ message: userInput, images: base64Images })
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message, images: imageFiles })
         });
 
         const data = await response.json();
-
-        const botMessage = document.createElement('p');
-        botMessage.className = 'assistant';
-        botMessage.textContent = 'Assistant: ' + data.reply;
-        chat.appendChild(botMessage);
-        chat.scrollTop = chat.scrollHeight;
+        appendMessage('Assistant', data.reply);
+        imageFiles = [];
+        preview.innerHTML = '';
       } catch (err) {
-        const botMessage = document.createElement('p');
-        botMessage.className = 'assistant';
-        botMessage.textContent = 'Assistant: Error getting response';
-        chat.appendChild(botMessage);
+        appendMessage('Assistant', 'Error: No response');
       }
-
-      document.getElementById('userInput').value = '';
-      document.getElementById('fileInput').value = '';
-    }
-
-    function toBase64(file) {
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = error => reject(error);
-      });
     }
   </script>
 </body>
 </html>
-
-
