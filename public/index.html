@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Jiffy Junk Volume Assistant</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" />
+  <script src="https://unpkg.com/konva@9/konva.min.js"></script>
   <style>
     #rotating-placeholder::placeholder {
       transition: opacity 0.3s ease-in-out;
@@ -19,20 +20,77 @@
     <div id="chat" class="border rounded p-4 h-64 overflow-y-scroll bg-gray-50 mb-4"></div>
 
     <div class="mb-4">
-      <label for="image-upload" class="block text-center text-gray-700 mb-2">Drag & drop images here or <span class="text-blue-600 underline cursor-pointer" onclick="document.getElementById('image-upload').click()">browse</span></label>
-      <input type="file" id="image-upload" multiple class="hidden" accept="image/*" />
-      <div id="drop-area" class="border-2 border-dashed border-blue-400 p-4 text-center text-gray-600"></div>
+      <label class="block text-gray-700 mb-2">🖍 Mark for Removal</label>
+      <div id="annotation-container" style="border: 2px dashed #ccc; padding: 10px;">
+        <div id="stage-container" style="width:100%; height:400px;"></div>
+      </div>
+      <input type="file" id="image-upload" accept="image/*" class="mt-2" />
     </div>
 
-    <textarea id="message" class="w-full border rounded p-2 mb-4" placeholder="" aria-placeholder="rotating" rows="3"></textarea>
+    <textarea id="message" class="w-full border rounded p-2 mb-4" placeholder="" rows="3"></textarea>
     <button id="send" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">Send</button>
   </div>
 
   <script>
+    let stage, layer, uploadedImage;
+
+    function initStage() {
+      stage = new Konva.Stage({
+        container: 'stage-container',
+        width: 600,
+        height: 400,
+      });
+      layer = new Konva.Layer();
+      stage.add(layer);
+
+      stage.on('click', function () {
+        const box = new Konva.Rect({
+          x: 50,
+          y: 50,
+          width: 100,
+          height: 80,
+          stroke: 'red',
+          strokeWidth: 3,
+          draggable: true,
+        });
+        layer.add(box);
+        layer.draw();
+      });
+    }
+
+    function loadAndDrawImage(imageData) {
+      const img = new window.Image();
+      img.onload = function () {
+        const konvaImg = new Konva.Image({
+          image: img,
+          width: 600,
+          height: 400,
+        });
+        layer.destroyChildren();
+        layer.add(konvaImg);
+        uploadedImage = konvaImg;
+        layer.draw();
+      };
+      img.src = imageData;
+    }
+
+    document.getElementById('image-upload').addEventListener('change', function (e) {
+      const reader = new FileReader();
+      reader.onload = function (event) {
+        if (!stage) initStage();
+        loadAndDrawImage(event.target.result);
+      };
+      reader.readAsDataURL(e.target.files[0]);
+    });
+
+    function getAnnotatedImageBase64() {
+      return stage ? stage.toDataURL({ pixelRatio: 2 }) : '';
+    }
+
     const placeholderTexts = [
       "Describe items or ask: 'How full is this truck?'",
       "How many yards of debris is in this picture?",
-      "What's in the photo that should be removed?"
+      "What's in the photo that should be removed?",
     ];
 
     let currentIndex = 0;
@@ -43,8 +101,37 @@
       currentIndex = (currentIndex + 1) % placeholderTexts.length;
     }
 
-    rotatePlaceholder(); // Initial
-    setInterval(rotatePlaceholder, 4000); // Rotate every 4 seconds
+    rotatePlaceholder();
+    setInterval(rotatePlaceholder, 4000);
+
+    async function sendMessage() {
+      const message = document.getElementById('message').value;
+      if (!message && !stage) return;
+
+      const chat = document.getElementById('chat');
+      const appendMessage = (role, text) => {
+        const msg = document.createElement('div');
+        msg.innerHTML = `<strong>${role}:</strong> ${text}`;
+        chat.appendChild(msg);
+        chat.scrollTop = chat.scrollHeight;
+      };
+
+      appendMessage('You', message);
+      document.getElementById('message').value = '';
+
+      try {
+        const response = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message, images: [getAnnotatedImageBase64()] })
+        });
+
+        const data = await response.json();
+        appendMessage('Assistant', data.reply);
+      } catch (err) {
+        appendMessage('Assistant', 'Error: No response');
+      }
+    }
   </script>
 </body>
 </html>
