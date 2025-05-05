@@ -5,6 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Jiffy Junk Volume Assistant</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" />
+  <style>
+    #rotating-placeholder::placeholder {
+      transition: opacity 0.3s ease-in-out;
+    }
+  </style>
 </head>
 <body class="bg-gray-100 font-sans">
   <div class="max-w-xl mx-auto mt-10 p-6 bg-white rounded shadow-md">
@@ -19,12 +24,27 @@
       <div id="drop-area" class="border-2 border-dashed border-blue-400 p-4 text-center text-gray-600"></div>
     </div>
 
-    <textarea id="message" class="w-full border rounded p-2 mb-4" placeholder="Describe items or ask: 'How full is this truck?'..."></textarea>
+    <textarea id="message" class="w-full border rounded p-2 mb-4" placeholder="" aria-placeholder="rotating" rows="3"></textarea>
     <button id="send" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">Send</button>
   </div>
 
   <script>
-    // JavaScript goes here if needed
+    const placeholderTexts = [
+      "Describe items or ask: 'How full is this truck?'",
+      "How many yards of debris is in this picture?",
+      "What's in the photo that should be removed?"
+    ];
+
+    let currentIndex = 0;
+    const textarea = document.getElementById('message');
+
+    function rotatePlaceholder() {
+      textarea.placeholder = placeholderTexts[currentIndex];
+      currentIndex = (currentIndex + 1) % placeholderTexts.length;
+    }
+
+    rotatePlaceholder(); // Initial
+    setInterval(rotatePlaceholder, 4000); // Rotate every 4 seconds
   </script>
 </body>
 </html>
