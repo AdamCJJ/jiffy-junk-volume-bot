@@ -3,135 +3,94 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Jiffy Junk Volume Assistant</title>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" />
-  <script src="https://unpkg.com/konva@9/konva.min.js"></script>
+  <title>Volume Estimator Assistant</title>
+  <script src="https://cdn.jsdelivr.net/npm/konva@9.2.0/konva.min.js"></script>
   <style>
-    #rotating-placeholder::placeholder {
-      transition: opacity 0.3s ease-in-out;
+    body {
+      font-family: sans-serif;
+      background-color: #f5f5f5;
+    }
+    .container {
+      max-width: 800px;
+      margin: 20px auto;
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    }
+    canvas {
+      border: 1px dashed #999;
     }
   </style>
 </head>
-<body class="bg-gray-100 font-sans">
-  <div class="max-w-xl mx-auto mt-10 p-6 bg-white rounded shadow-md">
-    <img src="logo.png" alt="Jiffy Junk logo" class="mx-auto w-40 mb-4" />
-    <h1 class="text-2xl font-bold text-center text-blue-900 mb-6">Volume Estimator Assistant</h1>
-
-    <div id="chat" class="border rounded p-4 h-64 overflow-y-scroll bg-gray-50 mb-4"></div>
-
-    <div class="mb-4">
-      <label class="block text-gray-700 mb-2">🖍 Mark for Removal</label>
-      <div id="annotation-container" style="border: 2px dashed #ccc; padding: 10px;">
-        <div id="stage-container" style="width:100%; height:400px;"></div>
-      </div>
-      <input type="file" id="image-upload" accept="image/*" class="mt-2" />
-    </div>
-
-    <textarea id="message" class="w-full border rounded p-2 mb-4" placeholder="" rows="3"></textarea>
-    <button id="send" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">Send</button>
+<body>
+  <div class="container">
+    <h2>🖍️ Mark for Removal</h2>
+    <input type="file" id="fileInput" accept="image/*" /><br/><br/>
+    <div id="canvasContainer"></div>
   </div>
 
   <script>
-    let stage, layer, uploadedImage;
+    const fileInput = document.getElementById('fileInput');
+    const canvasContainer = document.getElementById('canvasContainer');
 
-    function initStage() {
-      stage = new Konva.Stage({
-        container: 'stage-container',
-        width: 600,
-        height: 400,
-      });
-      layer = new Konva.Layer();
-      stage.add(layer);
+    let stage, layer, isDrawing = false, currentLine;
 
-      stage.on('click', function () {
-        const box = new Konva.Rect({
-          x: 50,
-          y: 50,
-          width: 100,
-          height: 80,
-          stroke: 'red',
-          strokeWidth: 3,
-          draggable: true,
-        });
-        layer.add(box);
-        layer.draw();
-      });
-    }
+    fileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
 
-    function loadAndDrawImage(imageData) {
-      const img = new window.Image();
-      img.onload = function () {
-        const konvaImg = new Konva.Image({
-          image: img,
-          width: 600,
-          height: 400,
-        });
-        layer.destroyChildren();
-        layer.add(konvaImg);
-        uploadedImage = konvaImg;
-        layer.draw();
-      };
-      img.src = imageData;
-    }
-
-    document.getElementById('image-upload').addEventListener('change', function (e) {
       const reader = new FileReader();
-      reader.onload = function (event) {
-        if (!stage) initStage();
-        loadAndDrawImage(event.target.result);
+      reader.onload = function(evt) {
+        const imageObj = new Image();
+        imageObj.onload = function() {
+          canvasContainer.innerHTML = '';
+
+          stage = new Konva.Stage({
+            container: 'canvasContainer',
+            width: imageObj.width,
+            height: imageObj.height,
+          });
+
+          layer = new Konva.Layer();
+          stage.add(layer);
+
+          const konvaImage = new Konva.Image({
+            image: imageObj,
+          });
+          layer.add(konvaImage);
+          layer.draw();
+
+          stage.on('mousedown touchstart', () => {
+            isDrawing = true;
+            const pos = stage.getPointerPosition();
+            currentLine = new Konva.Line({
+              stroke: 'red',
+              strokeWidth: 3,
+              globalCompositeOperation: 'source-over',
+              points: [pos.x, pos.y],
+              lineCap: 'round',
+              lineJoin: 'round'
+            });
+            layer.add(currentLine);
+          });
+
+          stage.on('mousemove touchmove', () => {
+            if (!isDrawing) return;
+            const pos = stage.getPointerPosition();
+            let newPoints = currentLine.points().concat([pos.x, pos.y]);
+            currentLine.points(newPoints);
+            layer.batchDraw();
+          });
+
+          stage.on('mouseup touchend', () => {
+            isDrawing = false;
+          });
+        };
+        imageObj.src = evt.target.result;
       };
-      reader.readAsDataURL(e.target.files[0]);
+      reader.readAsDataURL(file);
     });
-
-    function getAnnotatedImageBase64() {
-      return stage ? stage.toDataURL({ pixelRatio: 2 }) : '';
-    }
-
-    const placeholderTexts = [
-      "Describe items or ask: 'How full is this truck?'",
-      "How many yards of debris is in this picture?",
-      "What's in the photo that should be removed?",
-    ];
-
-    let currentIndex = 0;
-    const textarea = document.getElementById('message');
-
-    function rotatePlaceholder() {
-      textarea.placeholder = placeholderTexts[currentIndex];
-      currentIndex = (currentIndex + 1) % placeholderTexts.length;
-    }
-
-    rotatePlaceholder();
-    setInterval(rotatePlaceholder, 4000);
-
-    async function sendMessage() {
-      const message = document.getElementById('message').value;
-      if (!message && !stage) return;
-
-      const chat = document.getElementById('chat');
-      const appendMessage = (role, text) => {
-        const msg = document.createElement('div');
-        msg.innerHTML = `<strong>${role}:</strong> ${text}`;
-        chat.appendChild(msg);
-        chat.scrollTop = chat.scrollHeight;
-      };
-
-      appendMessage('You', message);
-      document.getElementById('message').value = '';
-
-      try {
-        const response = await fetch('/api/chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message, images: [getAnnotatedImageBase64()] })
-        });
-
-        const data = await response.json();
-        appendMessage('Assistant', data.reply);
-      } catch (err) {
-        appendMessage('Assistant', 'Error: No response');
-      }
-    }
   </script>
 </body>
 </html>
