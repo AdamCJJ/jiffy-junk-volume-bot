@@ -8,6 +8,7 @@ const { OpenAI } = require('openai');
 const app = express();
 app.use(cors());
 app.use(bodyParser.json({ limit: '10mb' }));
+app.use(express.static('public'));
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -28,9 +29,6 @@ app.post('/api/chat', async (req, res) => {
       { role: 'system', content: systemPrompt },
       { role: 'user', content: message || 'Estimate volume based on image.' }
     ];
-
-    // Optional: if vision model supported in future:
-    // Add image inputs if model supports base64 (currently text-only model is used)
 
     const completion = await openai.chat.completions.create({
       model: 'gpt-4',
