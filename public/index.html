@@ -2,97 +2,101 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Volume Estimator Assistant</title>
-  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Jiffy Junk Volume Assistant</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" />
   <script src="https://cdn.jsdelivr.net/npm/konva@9.2.0/konva.min.js"></script>
+  <style>
+    #canvas-container {
+      width: 100%;
+      border: 2px dashed #3b82f6;
+      margin-bottom: 1rem;
+    }
+    canvas {
+      width: 100% !important;
+      height: auto !important;
+    }
+  </style>
 </head>
-<body class="bg-gray-100 font-sans p-4">
-  <div class="max-w-3xl mx-auto bg-white rounded shadow p-6">
-    <img src="logo.png" alt="Jiffy Junk Logo" class="mx-auto w-32 mb-4" />
-    <h1 class="text-3xl font-bold text-center text-blue-800 mb-4">Volume Estimator Assistant</h1>
+<body class="bg-gray-100 font-sans">
+  <div class="max-w-2xl mx-auto mt-10 p-6 bg-white rounded shadow-md">
+    <img src="logo.png" alt="Jiffy Junk logo" class="mx-auto w-48 mb-4" />
+    <h1 class="text-2xl font-bold text-center text-blue-900 mb-6">Volume Estimator Assistant</h1>
 
-    <label class="block text-lg text-gray-700 mb-2 font-semibold">🖊️ Mark for Removal</label>
-    <div id="canvas-wrapper" class="border-2 border-dashed border-blue-400 p-2 mb-4">
-      <div id="container" class="mx-auto w-full h-auto"></div>
+    <div class="mb-4">
+      <label class="flex items-center gap-2 text-gray-700 font-medium mb-2">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-red-600" viewBox="0 0 20 20" fill="currentColor">
+          <path d="M17.414 2.586a2 2 0 00-2.828 0L9 8.172V11h2.828l5.586-5.586a2 2 0 000-2.828z" />
+          <path fill-rule="evenodd" d="M4 4a1 1 0 011-1h5.172a1 1 0 01.707.293l5.828 5.828a1 1 0 010 1.414L11 17.414a1 1 0 01-1.414 0L4.758 12.586A1 1 0 014 11.172V5a1 1 0 011-1z" clip-rule="evenodd" />
+        </svg>
+        Mark for Removal
+      </label>
+      <div id="canvas-container"></div>
+      <input type="file" id="image-upload" accept="image/*" class="mb-4" />
     </div>
 
-    <input id="file-input" type="file" accept="image/*" class="mb-4" />
-
-    <textarea id="message" class="w-full border rounded p-2 mb-4" rows="3"
-      placeholder="Describe items or ask: 'How full is this truck?' or 'How many yards is this?'..."></textarea>
-
-    <button id="send" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
-      Send
-    </button>
+    <textarea id="message" class="w-full border rounded p-2 mb-4" placeholder="Describe items or ask: 'How full is this truck?' or 'How many yards is this?'..."></textarea>
+    <button id="send" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">Send</button>
+    <div id="chat" class="border rounded p-4 h-64 overflow-y-scroll bg-gray-50 mt-6"></div>
   </div>
 
   <script>
-    const container = document.getElementById('container');
-    const fileInput = document.getElementById('file-input');
-    let stage, layer, isDrawing = false, lastLine;
+    let stage, layer, imageObj;
 
-    function setupCanvas(imageObj) {
-      container.innerHTML = ''; // Clear previous canvas
-
-      stage = new Konva.Stage({
-        container: 'container',
-        width: imageObj.width,
-        height: imageObj.height
-      });
-
-      layer = new Konva.Layer();
-      stage.add(layer);
-
-      const bgImage = new Konva.Image({
-        image: imageObj,
-        width: imageObj.width,
-        height: imageObj.height
-      });
-
-      layer.add(bgImage);
-      layer.draw();
-
-      stage.on('mousedown touchstart', () => {
-        isDrawing = true;
-        const pos = stage.getPointerPosition();
-        lastLine = new Konva.Line({
-          stroke: 'red',
-          strokeWidth: 3,
-          globalCompositeOperation: 'source-over',
-          points: [pos.x, pos.y],
-          lineCap: 'round',
-          lineJoin: 'round'
-        });
-        layer.add(lastLine);
-      });
-
-      stage.on('mouseup touchend', () => {
-        isDrawing = false;
-      });
-
-      stage.on('mousemove touchmove', () => {
-        if (!isDrawing) return;
-        const pos = stage.getPointerPosition();
-        const newPoints = lastLine.points().concat([pos.x, pos.y]);
-        lastLine.points(newPoints);
-        layer.batchDraw();
-      });
-    }
-
-    fileInput.addEventListener('change', (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-
+    document.getElementById('image-upload').addEventListener('change', function (e) {
       const reader = new FileReader();
-      reader.onload = function (evt) {
-        const imageObj = new Image();
+      reader.onload = function () {
+        const container = document.getElementById('canvas-container');
+        container.innerHTML = '';
+
+        imageObj = new Image();
         imageObj.onload = function () {
-          setupCanvas(imageObj);
+          stage = new Konva.Stage({
+            container: 'canvas-container',
+            width: imageObj.width,
+            height: imageObj.height
+          });
+
+          layer = new Konva.Layer();
+          const konvaImage = new Konva.Image({
+            image: imageObj,
+            x: 0,
+            y: 0
+          });
+
+          layer.add(konvaImage);
+          stage.add(layer);
+
+          let isDrawing = false;
+          let currentLine;
+
+          stage.on('mousedown touchstart', () => {
+            isDrawing = true;
+            const pos = stage.getPointerPosition();
+            currentLine = new Konva.Line({
+              stroke: 'red',
+              strokeWidth: 3,
+              globalCompositeOperation: 'source-over',
+              points: [pos.x, pos.y]
+            });
+            layer.add(currentLine);
+          });
+
+          stage.on('mousemove touchmove', () => {
+            if (!isDrawing) return;
+            const pos = stage.getPointerPosition();
+            const newPoints = currentLine.points().concat([pos.x, pos.y]);
+            currentLine.points(newPoints);
+            layer.batchDraw();
+          });
+
+          stage.on('mouseup touchend', () => {
+            isDrawing = false;
+          });
         };
-        imageObj.src = evt.target.result;
+        imageObj.src = reader.result;
       };
-      reader.readAsDataURL(file);
+      reader.readAsDataURL(e.target.files[0]);
     });
   </script>
 </body>
