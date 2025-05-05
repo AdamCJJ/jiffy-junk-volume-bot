@@ -1,4 +1,3 @@
-// script.js (client side)
 const chat = document.getElementById('chat');
 const textarea = document.getElementById('message');
 const sendBtn = document.getElementById('send');
@@ -12,12 +11,12 @@ function appendMessage(role, text) {
 }
 
 function getAnnotatedImageBase64() {
-  return stage ? stage.toDataURL({ pixelRatio: 2 }) : '';
+  return window.stage ? window.stage.toDataURL({ pixelRatio: 2 }) : '';
 }
 
 sendBtn.addEventListener('click', async () => {
   const message = textarea.value.trim();
-  if (!message && !stage) return;
+  if (!message && !window.stage) return;
 
   appendMessage('You', message || '[Image only]');
   textarea.value = '';
