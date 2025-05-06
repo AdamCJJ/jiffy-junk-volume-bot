@@ -1,5 +1,4 @@
-<!DOCTYPE html>
-<html lang="en">
+<!DOCTYPE html><html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -21,27 +20,29 @@
 <body class="bg-gray-100 font-sans">
   <div class="max-w-2xl mx-auto mt-10 p-6 bg-white rounded shadow-md">
     <img src="logo.png" alt="Jiffy Junk logo" class="mx-auto w-48 mb-4" />
-    <h1 class="text-2xl font-bold text-center text-blue-900 mb-6">Volume Estimator Assistant</h1>
-
-    <div class="mb-4">
-      <label class="flex items-center gap-2 text-gray-700 font-medium mb-2">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-red-600" viewBox="0 0 20 20" fill="currentColor">
-          <path d="M17.414 2.586a2 2 0 00-2.828 0L9 8.172V11h2.828l5.586-5.586a2 2 0 000-2.828z" />
-          <path fill-rule="evenodd" d="M4 4a1 1 0 011-1h5.172a1 1 0 01.707.293l5.828 5.828a1 1 0 010 1.414L11 17.414a1 1 0 01-1.414 0L4.758 12.586A1 1 0 014 11.172V5a1 1 0 011-1z" clip-rule="evenodd" />
-        </svg>
-        Mark for Removal
-      </label>
-      <div id="canvas-container"></div>
-      <input type="file" id="image-upload" accept="image/*" class="mb-4" />
-    </div>
-
-    <textarea id="message" class="w-full border rounded p-2 mb-4" placeholder="Describe items or ask: 'How full is this truck?' or 'How many yards is this?'..."></textarea>
-    <button id="send" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">Send</button>
-    <div id="chat" class="border rounded p-4 h-64 overflow-y-scroll bg-gray-50 mt-6"></div>
+    <h1 class="text-2xl font-bold text-center text-blue-900 mb-6">Volume Estimator Assistant</h1><div class="mb-4">
+  <label class="flex items-center gap-2 text-gray-700 font-medium mb-2">
+    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-red-600" viewBox="0 0 20 20" fill="currentColor">
+      <path d="M17.414 2.586a2 2 0 00-2.828 0L9 8.172V11h2.828l5.586-5.586a2 2 0 000-2.828z" />
+      <path fill-rule="evenodd" d="M4 4a1 1 0 011-1h5.172a1 1 0 01.707.293l5.828 5.828a1 1 0 010 1.414L11 17.414a1 1 0 01-1.414 0L4.758 12.586A1 1 0 014 11.172V5a1 1 0 011-1z" clip-rule="evenodd" />
+    </svg>
+    Mark for Removal
+  </label>
+  <div id="canvas-container"></div>
+  <div class="flex justify-end mb-4">
+    <button id="undo-button" class="bg-gray-200 hover:bg-gray-300 text-sm px-4 py-1 rounded">Undo</button>
   </div>
+  <input type="file" id="image-upload" accept="image/*" class="mb-4" />
+</div>
 
-  <script>
+<textarea id="message" class="w-full border rounded p-2 mb-4" placeholder="Describe the junk or ask things like: 'How full is this truck?', 'How many yards is this?', or 'Estimate the volume from this photo.'..."></textarea>
+<button id="send" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">Send</button>
+<div id="chat" class="border rounded p-4 h-64 overflow-y-scroll bg-gray-50 mt-6"></div>
+
+  </div>  <script>
     let stage, layer, imageObj;
+    let annotations = [];
+
     document.getElementById('image-upload').addEventListener('change', function (e) {
       const reader = new FileReader();
       reader.onload = function () {
@@ -57,7 +58,6 @@
           });
 
           window.stage = stage;
-
           layer = new Konva.Layer();
           const konvaImage = new Konva.Image({
             image: imageObj,
@@ -67,6 +67,8 @@
 
           layer.add(konvaImage);
           stage.add(layer);
+
+          annotations = []; // reset on new image
 
           let isDrawing = false;
           let currentLine;
@@ -81,6 +83,7 @@
               points: [pos.x, pos.y]
             });
             layer.add(currentLine);
+            annotations.push(currentLine);
           });
 
           stage.on('mousemove touchmove', () => {
@@ -99,9 +102,13 @@
       };
       reader.readAsDataURL(e.target.files[0]);
     });
-  </script>
 
-  <!-- Client-side logic -->
-  <script src="script.js"></script>
-</body>
+    document.getElementById('undo-button').addEventListener('click', () => {
+      const lastLine = annotations.pop();
+      if (lastLine) {
+        lastLine.destroy();
+        layer.draw();
+      }
+    });
+  </script>  <script src="script.js"></script></body>
 </html>
