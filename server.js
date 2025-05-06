@@ -8,7 +8,7 @@ const app = express();
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 app.use(cors());
-app.use(bodyParser.json({ limit: '25mb' }));
+app.use(bodyParser.json({ limit: '100mb' }));
 app.use(express.static('public'));
 
 const systemPrompt = `
@@ -36,15 +36,20 @@ app.post('/api/chat', async (req, res) => {
     ];
 
     if (images && images.length > 0) {
-      for (const base64 of images) {
-        messages[1].content.push({
-          type: 'image_url',
-          image_url: {
-            url: base64
-          }
-        });
+  const base64 = images[0].split(',')[1]; // remove the 'data:image/png;base64,' part
+  messages.push({
+    role: 'user',
+    content: [
+      { type: 'text', text: message || 'Estimate volume from image only.' },
+      {
+        type: 'image_url',
+        image_url: {
+          url: `data:image/png;base64,${base64}`
+        }
       }
-    }
+    ]
+  });
+}
 
    const completion = await openai.chat.completions.create({
   model: 'gpt-4o',  // <-- new correct model
