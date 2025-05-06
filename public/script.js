@@ -16,7 +16,9 @@ function getAnnotatedImageBase64() {
 
 sendBtn.addEventListener('click', async () => {
   const message = textarea.value.trim();
-  if (!message && !window.stage) return;
+  const imageData = getAnnotatedImageBase64();
+
+  if (!message && !imageData) return;
 
   appendMessage('You', message || '[Image only]');
   textarea.value = '';
@@ -25,10 +27,7 @@ sendBtn.addEventListener('click', async () => {
     const response = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        message,
-        images: [getAnnotatedImageBase64()]
-      })
+      body: JSON.stringify({ message, images: [imageData] })
     });
 
     const data = await response.json();
