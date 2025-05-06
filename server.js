@@ -46,11 +46,11 @@ app.post('/api/chat', async (req, res) => {
       }
     }
 
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4-vision-preview',
-      messages,
-      max_tokens: 1000
-    });
+   const completion = await openai.chat.completions.create({
+  model: 'gpt-4o',  // <-- new correct model
+  messages,
+  max_tokens: 1000
+});
 
     const reply = completion.choices?.[0]?.message?.content;
     res.json({ reply });
