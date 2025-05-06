@@ -8,16 +8,14 @@ const app = express();
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 app.use(cors());
-app.use(bodyParser.json({ limit: '50mb' }));
+app.use(bodyParser.json({ limit: '25mb' }));
 app.use(express.static('public'));
 
 const systemPrompt = `
 You are the Jiffy Junk Volume Assistant.
-Estimate the total cubic yards of junk based on the user's description and/or annotated image.
-Always avoid double-counting overlapping or duplicate items shown in multiple photos.
-Assume 15-yard trucks by default, unless another size is mentioned.
-If asked "how full is this truck?", ask for the truck's size before giving a fraction.
-Respond only with estimated volume — never include pricing or unrelated commentary.
+Estimate the total cubic yards of junk based on the user's description and/or image.
+Assume 15-yard trucks by default unless another size is mentioned.
+Avoid counting duplicates. Return only volume — no pricing.
 `;
 
 app.post('/api/chat', async (req, res) => {
@@ -25,20 +23,40 @@ app.post('/api/chat', async (req, res) => {
     const { message, images } = req.body;
 
     const messages = [
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: message || 'Estimate volume based on image only.' }
+      {
+        role: 'system',
+        content: systemPrompt
+      },
+      {
+        role: 'user',
+        content: [
+          { type: 'text', text: message || 'Estimate volume from image only.' }
+        ]
+      }
     ];
 
+    if (images && images.length > 0) {
+      for (const base64 of images) {
+        messages[1].content.push({
+          type: 'image_url',
+          image_url: {
+            url: base64
+          }
+        });
+      }
+    }
+
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4o',
-      messages
+      model: 'gpt-4-vision-preview',
+      messages,
+      max_tokens: 1000
     });
 
-    const reply = completion.choices[0].message.content.trim();
+    const reply = completion.choices?.[0]?.message?.content;
     res.json({ reply });
   } catch (err) {
     console.error('[GPT ERROR]', err);
-    res.status(500).json({ reply: `Error: ${err.message || 'Unknown GPT error'}` });
+    res.status(500).json({ reply: `Error: ${err.message}` });
   }
 });
 
