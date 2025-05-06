@@ -10,9 +10,9 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 // Middleware
 app.use(cors());
-app.use(bodyParser.json({ limit: '25mb' }));
+app.use(bodyParser.json({ limit: '100mb' }));
+app.use(bodyParser.urlencoded({ limit: '100mb', extended: true }));
 app.use(express.static('public'));
-
 const systemPrompt = `
 You are the Jiffy Junk Volume Assistant.
 Estimate the total cubic yards of junk based on the user's description and/or annotated image.
