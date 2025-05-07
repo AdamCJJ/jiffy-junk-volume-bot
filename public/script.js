@@ -14,7 +14,7 @@ const lower = message.toLowerCase();
 
 appendMessage('You', message || '[Image only]'); textarea.value = '';
 
-try { const response = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message, images: [originalImageBase64] // Send raw uploaded image only for better accuracy }) });
+try { const response = await fetch('https://jiffy-junk-volume-bot.onrender.com/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message, images: [originalImageBase64] // Send raw uploaded image only for better accuracy }) });
 
 const data = await response.json();
 appendMessage('Assistant', data.reply);
