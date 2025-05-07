@@ -1,130 +1,68 @@
-const chat = document.getElementById('chat');
-const textarea = document.getElementById('message');
-const sendBtn = document.getElementById('send');
-const loading = document.getElementById('loading');
+require('dotenv').config();
+const express = require('express');
+const cors = require('cors');
+const bodyParser = require('body-parser');
+const { OpenAI } = require('openai');
 
-let stage, layer, imageObj;
-let annotations = [];
-let originalImageBase64 = '';
+const app = express();
+app.use(cors());
+app.use(bodyParser.json({ limit: '25mb' }));
+app.use(express.static('public'));
 
-function appendMessage(role, text) {
-  const msg = document.createElement('div');
-  msg.className = 'mb-2';
-  msg.innerHTML = `<strong>${role}:</strong> ${text}`;
-  chat.appendChild(msg);
-  chat.scrollTop = chat.scrollHeight;
-}
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
 
-function getAnnotatedImageBase64() {
-  return stage ? stage.toDataURL({ pixelRatio: 2 }) : '';
-}
+const systemPrompt = `
+You are the Jiffy Junk Volume Assistant.
+Estimate the total cubic yards of junk based on the user's description and uploaded image.
+Do not double count overlapping or duplicate items from multiple photos.
+Assume 15-yard trucks by default unless another size is mentioned.
+If asked how full a truck is, ask what size it is before estimating fraction.
+Only provide estimated volume—no pricing.
+`;
 
-sendBtn.addEventListener('click', async () => {
-  let message = textarea.value.trim();
-  if (!message && !originalImageBase64) return;
-
-  const lower = message.toLowerCase();
-
-  // Normalize common question formats
-  if (lower.includes("how full") && lower.includes("truck")) {
-    message = "Can you estimate how full this truck is?";
-  } else if (lower.includes("how many yards") || lower.includes("yardage")) {
-    message = "Can you estimate how many cubic yards are shown?";
-  } else if (lower.includes("how much debris") || lower.includes("volume") || lower.includes("how big is this")) {
-    message = "Can you estimate the junk volume in cubic yards?";
-  } else if (lower.includes("how many items") || lower.includes("item count")) {
-    message = "Can you count the number of items?";
-  }
-
-  appendMessage('You', message || '[Image only]');
-  textarea.value = '';
-  loading.classList.remove('hidden');
-
+app.post('/api/chat', async (req, res) => {
   try {
-    const response = await fetch('/api/chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        message,
-        images: [originalImageBase64] // use original for accuracy
+    const { message, images } = req.body;
+
+    const messages = [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: message || 'Estimate the volume from this photo.' }
+    ];
+
+    const base64Image = images?.[0];
+
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o',
+      messages,
+      ...(base64Image && {
+        tools: [{ type: "image_url" }],
+        messages: [
+          { role: 'system', content: systemPrompt },
+          {
+            role: 'user',
+            content: [
+              { type: 'text', text: message || 'Estimate the volume from this photo.' },
+              {
+                type: 'image_url',
+                image_url: { url: base64Image }
+              }
+            ]
+          }
+        ]
       })
     });
 
-    const data = await response.json();
-    appendMessage('Assistant', data.reply);
+    const reply = completion.choices?.[0]?.message?.content?.trim();
+    res.json({ reply: reply || 'No response generated' });
   } catch (err) {
-    appendMessage('Assistant', 'Error: Could not connect to server');
-  } finally {
-    loading.classList.add('hidden');
+    console.error('[GPT ERROR]', err);
+    res.status(500).json({ reply: `Error: ${err.message || 'Unknown error'}` });
   }
 });
 
-// Upload and annotate image
-document.getElementById('image-upload').addEventListener('change', function (e) {
-  const reader = new FileReader();
-  reader.onload = function () {
-    originalImageBase64 = reader.result;
-    const container = document.getElementById('canvas-container');
-    container.innerHTML = '';
-
-    imageObj = new Image();
-    imageObj.onload = function () {
-      stage = new Konva.Stage({
-        container: 'canvas-container',
-        width: imageObj.width,
-        height: imageObj.height
-      });
-
-      window.stage = stage;
-      layer = new Konva.Layer();
-      const konvaImage = new Konva.Image({
-        image: imageObj,
-        x: 0,
-        y: 0
-      });
-
-      layer.add(konvaImage);
-      stage.add(layer);
-
-      annotations = [];
-      let isDrawing = false;
-      let currentLine;
-
-      stage.on('mousedown touchstart', () => {
-        isDrawing = true;
-        const pos = stage.getPointerPosition();
-        currentLine = new Konva.Line({
-          stroke: 'red',
-          strokeWidth: 3,
-          globalCompositeOperation: 'source-over',
-          points: [pos.x, pos.y]
-        });
-        layer.add(currentLine);
-        annotations.push(currentLine);
-      });
-
-      stage.on('mousemove touchmove', () => {
-        if (!isDrawing) return;
-        const pos = stage.getPointerPosition();
-        const newPoints = currentLine.points().concat([pos.x, pos.y]);
-        currentLine.points(newPoints);
-        layer.batchDraw();
-      });
-
-      stage.on('mouseup touchend', () => {
-        isDrawing = false;
-      });
-    };
-    imageObj.src = reader.result;
-  };
-  reader.readAsDataURL(e.target.files[0]);
-});
-
-// Undo button
-document.getElementById('undo-button').addEventListener('click', () => {
-  const lastLine = annotations.pop();
-  if (lastLine) {
-    lastLine.destroy();
-    layer.draw();
-  }
+const PORT = process.env.PORT || 10000;
+app.listen(PORT, () => {
+  console.log(`✅ Server running at http://localhost:${PORT}`);
 });
