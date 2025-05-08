@@ -32,26 +32,28 @@ app.post('/api/chat', async (req, res) => {
 
     const base64Image = images?.[0];
 
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4o',
-      messages,
-      ...(base64Image && {
-        tools: [{ type: "image_url" }],
-        messages: [
-          { role: 'system', content: systemPrompt },
-          {
-            role: 'user',
-            content: [
-              { type: 'text', text: message || 'Estimate the volume from this photo.' },
-              {
-                type: 'image_url',
-                image_url: { url: base64Image }
-              }
-            ]
+const completion = await openai.chat.completions.create({
+  model: 'gpt-4o',
+  messages: base64Image ? [
+    { role: 'system', content: systemPrompt },
+    {
+      role: 'user',
+      content: [
+        { type: 'text', text: message || 'Estimate the volume from this photo.' },
+        {
+          type: 'image_url',
+          image_url: {
+            url: base64Image,
+            detail: 'auto'
           }
-        ]
-      })
-    });
+        }
+      ]
+    }
+  ] : [
+    { role: 'system', content: systemPrompt },
+    { role: 'user', content: message }
+  ]
+});
 
     const reply = completion.choices?.[0]?.message?.content?.trim();
     res.json({ reply: reply || 'No response generated' });
